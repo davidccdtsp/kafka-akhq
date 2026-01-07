@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: akhq-manual
+  namespace: kafka
+  uid: 9bcb1afe-1b86-4cf9-9d11-ef0ae0be99a5
+  resourceVersion: '161330'
+  generation: 1
+  creationTimestamp: '2025-12-27T18:14:51Z'
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"networking.k8s.io/v1","kind":"Ingress","metadata":{"annotations":{"nginx.ingress.kubernetes.io/proxy-buffer-size":"128k","nginx.ingress.kubernetes.io/ssl-redirect":"true"},"name":"akhq-manual","namespace":"kafka"},"spec":{"ingressClassName":"nginx","rules":[{"host":"akhq.192.168.49.2.nip.io","http":{"paths":[{"backend":{"service":{"name":"akhq-local","port":{"number":80}}},"path":"/","pathType":"Prefix"}]}}],"tls":[{"hosts":["akhq.192.168.49.2.nip.io"],"secretName":"akhq-tls-secret"}]}}
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+  selfLink: /apis/networking.k8s.io/v1/namespaces/kafka/ingresses/akhq-manual
+status:
+  loadBalancer:
+    ingress:
+      - ip: 192.168.49.2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - akhq.192.168.49.2.nip.io
+      secretName: akhq-tls-secret
+  rules:
+    - host: akhq.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: akhq-local
+                port:
+                  number: 80

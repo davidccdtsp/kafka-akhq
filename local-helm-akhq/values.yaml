@@ -1,0 +1,236 @@
+# imagePullSecrets:
+#  - name: my-repository-secret
+image:
+  repository: tchiotludo/akhq
+  tag: "" # uses Chart.AppVersion by default
+# Number of old deployment ReplicaSets to retain. The rest will be garbage collected.
+revisionHistoryLimit: 10
+# custom annotations (example: for prometheus)
+annotations: {}
+  #prometheus.io/scrape: 'true'
+  #prometheus.io/port: '8080'
+  #prometheus.io/path: '/prometheus'
+
+podAnnotations: {}
+
+configmapAnnotations: {}
+  # vault.security.banzaicloud.io/vault-role: akhq
+  # vault.security.banzaicloud.io/vault-serviceaccount: akhq
+
+secretAnnotations: {}
+  # same as configmapAnnotations
+
+# custom labels
+labels: {}
+  # custom.label: 'true'
+
+podLabels: {}
+
+## You can put directly your configuration here... or add java opts or any other env vars
+extraEnv: 
+  - name: JAVA_OPTS
+    value: "-Djavax.net.ssl.trustStore=/etc/akhq-ssl/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit"  
+    # value: -Djavax.net.ssl.trustStore=/etc/akhq-ssl/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Dlogger.levels.io.micronaut.security=TRACE -Dlogger.levels.io.micronaut.security.authentication=TRACE -Dlogger.levels.io.micronaut.security.token=TRACE -Dlogger.levels.org.akhq=DEBUG
+
+## Or you can also use configmap for the configuration...
+configuration: 
+  akhq:
+    connections:
+      hm-kafka:
+        properties:
+          bootstrap.servers: my-cluster-kafka-bootstrap:9092
+
+    security:
+      default-group: no-roles
+      roles:
+        topic-admin:
+          - resources: [ "TOPIC", "TOPIC_DATA"]
+            actions: [ "READ", "CREATE", "DELETE" ]
+          - resources: ["CONSUMER_GROUP", "CONNECT_CLUSTER"]
+            actions: ["READ"]  
+          - resources: [ "TOPIC" ]
+            actions: [ "UPDATE", "READ_CONFIG", "ALTER_CONFIG" ]
+      groups:
+        topic-admin-pub: 
+          - role: topic-admin
+            patterns: [".*"] 
+        # akhq-full-admin:
+        #   - role: admin
+      oidc:    
+        enabled: true
+        providers:
+          oidc:
+            label: "Login with Keycloak"
+            username-field: preferred_username
+            # groups-field: roles
+            # default-group: no-roles
+            use-oidc-claim: false  
+            groups:
+              - name: admins
+                groups:
+                  # - akhq-full-admin
+                  - topic-admin-pub
+
+  micronaut:
+    security:
+      enabled: true
+      oauth2:
+        clients:
+          oidc:
+            client-id: "akhq-client"
+            client-secret: "en5IPOldfrp6DwpTjsGTZekQncjpyUhv"
+            openid:
+              issuer: "https://keycloak.192.168.49.2.nip.io/realms/akhq"
+              # configuration-path: "http://keycloak.kafka.svc.cluster.local:8080/realms/akhq/.well-known/openid-configuration"
+              # jwks-uri: "http://keycloak.kafka.svc.cluster.local:8080/realms/akhq/protocol/openid-connect/certs"
+    caches:
+      local-security-claim-provider:
+        enabled: false
+        # expire-after-write: 600s 
+
+
+##... and secret for connection information
+existingSecrets: ""
+# name of the existingSecret
+secrets: {}
+#  akhq:
+#    connections:
+#      my-cluster-plain-text:
+#        properties:
+#          bootstrap.servers: "kafka:9092"
+#        schema-registry:
+#          url: "http://schema-registry:8085"
+#          type: "confluent"
+#          basic-auth-username: basic-auth-user
+#          basic-auth-password: basic-auth-pass
+#        connect:
+#          - name: "my-connect"
+#            url: "http://connect:8083"
+#            basic-auth-username: basic-auth-user
+#            basic-auth-password: basic-auth-pass
+
+#Provide extra base64 encoded kubernetes secrets (keystore/truststore)
+kafkaSecrets: {}
+#  truststore.jks: MIIIE...
+#  keystore.jks: MIIIE...
+
+# Any extra volumes to define for the pod (like keystore/truststore)
+extraVolumes:
+  - name: truststore-volume
+    secret:
+      secretName: akhq-truststore
+
+# Any extra volume mounts to define for the akhq container
+extraVolumeMounts:
+  - name: truststore-volume
+    mountPath: /etc/akhq-ssl
+    readOnly: true
+
+
+# Specify ServiceAccount for pod
+serviceAccountName: null
+serviceAccount:
+  create: false
+  #annotations:
+  #  eks.amazonaws.com/role-arn: arn:aws:iam::123456789000:role/iam-role-name-here
+
+# Add your own init container or uncomment and modify the example.
+initContainers: {}
+#   create-keystore:
+#     image: "eclipse-temurin:11-jre"
+#     command: ['sh', '-c', 'keytool']
+#     volumeMounts:
+#      - mountPath: /tmp
+#        name: certs
+
+# Configure the Pod Security Context
+# ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+securityContext: {}
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Configure the Container Security Context
+# ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
+  # privileged: false
+  # capabilities:
+  #   drop:
+  #     - ALL
+  # runAsNonRoot: true
+  # runAsUser: 1001
+  # readOnlyRootFilesystem: true
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  managementPort: 28081
+  #httpNodePort: 32551
+  #managementNodePort: 32552
+  labels: {}
+  loadBalancerIP: ""
+  annotations:
+    # cloud.google.com/load-balancer-type: "Internal"
+
+ingress:
+  enabled: false
+  ingressClassName: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  labels: {}
+  paths:
+    - /
+  pathType: "ImplementationSpecific"
+  hosts:
+    - akhq.demo.com
+  tls: []
+  #  - secretName: akhq-tls
+  #    hosts:
+  #      - akhq.demo.com
+
+### Readiness / Liveness probe config.
+### ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/
+readinessProbe:
+  enabled: true
+  prefix: "" # set same as `micronaut.server.context-path`
+  path: /health
+  port: management
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+  httpGetExtra: {}
+
+livenessProbe:
+  enabled: true
+  prefix: "" # set same as `micronaut.server.context-path`
+  path: /health
+  port: management
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+  httpGetExtra: {}
+
+resources: {}
+  # limits:
+  #  cpu: 100m
+  #  memory: 128Mi
+  # requests:
+  #  cpu: 100m
+  #  memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+networkPolicy:
+  enabled: true
+  labels: {}
+

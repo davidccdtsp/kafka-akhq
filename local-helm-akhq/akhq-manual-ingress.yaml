@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: akhq-manual
+  namespace: kafka
+  annotations:
+    # Redirige HTTP a HTTPS
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Aumenta el buffer para que Keycloak no falle con cabeceras grandes
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - akhq.192.168.49.2.nip.io
+      secretName: akhq-tls-secret
+  rules:
+    - host: akhq.192.168.49.2.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: akhq-local  # <--- Debe coincidir con tu servicio actual
+                port:
+                  number: 80
+
+                  # kubectl apply -f akhq-manual-ingress.yaml
